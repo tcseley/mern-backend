@@ -36,7 +36,7 @@ const signup = async (req, res) => {
       const newUser = new User({
         name,
         email,
-        password: hash,
+        password: hash
       });
 
       const savedNewUser = await newUser.save();
@@ -57,7 +57,8 @@ const login = async (req, res) => {
 
     try {
         // First find an user via email
-        const user = await user.findOne({ email });
+        const user = await User.findOne({ email });
+        console.log(user);
 
         if (!user) {
             return res.status(400).json({ message: 'Please check username or password.'});
@@ -92,17 +93,27 @@ const login = async (req, res) => {
                 } catch (error) {
                     console.log('Error inside of isMatch conditional');
                     console.log(error);
-                    res.status(400).json({ message: 'Session has ended. Please log in again.'});
+                    return res.status(400).json({ message: 'Session has ended. Please log in again.'});
                 }
             } else {
-                return res.status(400).json({ 'Either email or password is incorrect'});
+                return res.status(400).json({ message: 'Either email or password is incorrect' });
             }
         }
+
     } catch (error) {
         console.log('Error inside of api/users/login');
         console.log(error);
         return res.status(400).json({ message: 'Log in error occurred. Check username or password.'})
     }
+}
+
+const profile = async (req, res) => {
+    console.log('Inside of PROFILE route');
+    res.json({
+        id: req.user.id,
+        name: req.user.name,
+        email: req.user.email
+    });
 }
 
 // routes
@@ -113,10 +124,10 @@ router.get("/test", test);
 router.post("/signup", signup);
 
 // POST api/users/login (Public)
-// router.post('/login', login);
+router.post('/login', login);
 
-// GET api/users/current (Private)
-//router.get('/profile', passport.authenticate('jwt', { session: false }), profile);
+// GET api/users/profile (Private)
+router.get('/profile', passport.authenticate('jwt', { session: false }), profile);
 // router.get('/all-users', fetchUsers);
 
 module.exports = router;
