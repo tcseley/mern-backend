@@ -1,63 +1,116 @@
 // Imports
-require('dotenv').config();
-const express = require('express');
+require("dotenv").config();
+const express = require("express");
 const router = express.Router();
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const passport = require('passport');
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const passport = require("passport");
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Models
-const { User } = require('../models');
+const { User } = require("../models");
 
 // controllers
 const test = async (req, res) => {
-    res.json({ message: 'User endpoint OK!'});
-}
+  res.json({ message: "User endpoint OK!" });
+};
 
 const signup = async (req, res) => {
-    console.log('Inside of signup')
-    console.log('req.body ->', req.body)
-    const {name, email, password} = req.body;
-    
+  console.log("Inside of signup");
+  console.log("req.body ->", req.body);
+  const { name, email, password } = req.body;
+
+  try {
+    // First this is see if a user exists in database by email
+    const user = await User.findOne({ email });
+
+    // if user exists, we need to return a 400 error and message
+    if (user) {
+      return res.status(400).json({ message: "Email already exists" });
+    } else {
+      console.log("Create a new user");
+      let saltRounds = 12;
+      let salt = await bcrypt.genSalt(saltRounds);
+      let hash = await bcrypt.hash(password, salt);
+
+      const newUser = new User({
+        name,
+        email,
+        password: hash,
+      });
+
+      const savedNewUser = await newUser.save();
+
+      res.json(savedNewUser);
+    }
+  } catch (error) {
+    console.log("Error inside of api/users/signup");
+    console.log(error);
+    return res
+      .status(400)
+      .json({ message: "Error occurred. Please try again." });
+  }
+}
+
+const login = async (req, res) => {
+    const { email, password } = req.body;
+
     try {
-        // First this is see if a user exists in database by email
-        const user = await User.findOne({ email });
+        // First find an user via email
+        const user = await user.findOne({ email });
 
-        // if user exists, we need to return a 400 error and message
-        if (user) {
-            return res.status(400).json({ message: 'Email already exists' });
-        } else  {
-            console.log('Create a new user');
-            let saltRounds = 12;
-            let salt = await bcrypt.genSalt(saltRounds);
-            let hash = await bcrypt.hash(password, salt);
+        if (!user) {
+            return res.status(400).json({ message: 'Please check username or password.'});
+        } else {
+            let isMatch = await bcrypt.compare(password, user.password);
+            console.log('password correct', isMatch);
 
-            const newUser = new User({
-                name,
-                email,
-                password: hash
-            });
+            if (isMatch) {
+                // Add one to `timesLoggedIn`
+                let logs = user.timesLoggedIn + 1;
+                user.timesLoggedIn = logs;
+                const savedUser = await user.save();
+                // Create a token payload. This is going to be an {object} of data
+                const payload = {
+                    id: user.id,
+                    eamil: user.email,
+                    name: user.name,
+                    expiredToken: Date.now()
+                }
 
-            const savednewuser = await newUser.save();
+                try {
+                    // This is where token is generated
+                    let token = await jwt.sign(payload, JWT_SECRET, { expiresIn: 3600 });
+                    console.log('token', token);
+                    let legit = await jwt.verify(token, JWT_SECRET, { expiresIn: 60 });
 
-            res.json(savedNewUser);
-
+                    res.json({
+                        success: true,
+                        token: `Bearer ${token}`,
+                        userData: legit
+                    })
+                } catch (error) {
+                    console.log('Error inside of isMatch conditional');
+                    console.log(error);
+                    res.status(400).json({ message: 'Session has ended. Please log in again.'});
+                }
+            } else {
+                return res.status(400).json({ 'Either email or password is incorrect'});
+            }
         }
     } catch (error) {
-        console.log('Error inside of api/users/signup');
+        console.log('Error inside of api/users/login');
         console.log(error);
-        return res.status(400).json({ message: 'Error occurred. Please try again.'});
-        
+        return res.status(400).json({ message: 'Log in error occurred. Check username or password.'})
     }
 }
 
 // routes
 // To test: GET -> /api/users/test
-router.get('/test', test);
+router.get("/test", test);
 
 // POST -> api/users/signup (Public)
-router.post('/signup', signup);
+router.post("/signup", signup);
 
 // POST api/users/login (Public)
 // router.post('/login', login);
@@ -66,4 +119,4 @@ router.post('/signup', signup);
 //router.get('/profile', passport.authenticate('jwt', { session: false }), profile);
 // router.get('/all-users', fetchUsers);
 
-module.exports = router; 
+module.exports = router;
