@@ -9,7 +9,7 @@ const { Book } = require("../models");
 
 // Controllers
 const index = async (req, res) => {
-  console.log("Inside of /api/books");
+  console.log("inside of /api/books");
   try {
     const allBooks = await Book.find({});
 
@@ -26,12 +26,13 @@ const index = async (req, res) => {
 const show = async (req, res) => {
   const { id } = req.params;
   try {
+    // look for book based on id
     const book = await Book.findById(id);
     res.json({ book });
   } catch (error) {
     console.log("Error inside of /api/books/:id");
     console.log(error);
-    return res.statue(400).json({ message: "Book not found. Ztry again..." });
+    return res.status(400).json({ message: "Book not found. Try again..." });
   }
 };
 
@@ -50,11 +51,11 @@ const create = async (req, res) => {
     console.log("new book created", newBook);
     res.json({ book: newBook });
   } catch (error) {
-    console.log("Error inside of /api/books/create");
+    console.log("Error inside of POST of /api/books");
     console.log(error);
     return res
       .status(400)
-      .json({ message: "Book not created. Please try again..." });
+      .json({ message: "Book was not created. Please try again..." });
   }
 };
 
@@ -75,34 +76,38 @@ const update = async (req, res) => {
     // const saveBook = await book.save();
 
     // Another way to do the same thing is this (2nd way):
-    const updatedBook = await Book.updateOne({ title: req.body.title }, req.body);
+    const updatedBook = await Book.update({ title: req.body.title }, req.body);
     const book = await Book.findOne({ title: req.body.title });
 
     console.log(updatedBook);
     console.log(book);
-    
-    res.redirect(`/api/books/${book.id}`)
 
+    res.redirect(`/api/books/${book.id}`);
 
   } catch (error) {
-      // Console logging error inside update route
-      console.log('Error inside UPDATE route');
-      console.log(error);
-      res.status(400).json({ message: 'Book could not be updated. Please try again...'});
+    // Console logging error inside update route
+    console.log("Error inside UPDATE route");
+    console.log(error);
+    return res
+      .status(400)
+      .json({ message: "Book could not be updated. Please try again..." });
   }
 };
 
 const deleteBook = async (req, res) => {
-    const { id } = req.params;
-    try {
-        const result = await book.findByIdAndRemove(id);
-        console.log(result);
-        res.redirect('/api/books');
-    } catch (error) {
-        console.log('Inside of DELETE route');
-        console.log(error);
-        return res.status(400).json({ message: 'Book was not deleted. Please try again...'});
-    }
+  const { id } = req.params;
+  try {
+    console.log(id);
+    const result = await Book.findByIdAndRemove(id);
+    console.log(result);
+    res.redirect("/api/books");
+  } catch (error) {
+    console.log("Inside of DELETE route");
+    console.log(error);
+    return res
+      .status(400)
+      .json({ message: "Book was not deleted. Please try again..." });
+  }
 };
 
 // GET api/books/test (Public)
@@ -117,8 +122,12 @@ router.get("/:id", passport.authenticate("jwt", { session: false }), show);
 // POST -> /api/books
 router.post("/", passport.authenticate("jwt", { session: false }), create);
 // PUT -> /api/books
-router.put('/', passport.authenticate('jwt', { session: false }), update);
+router.put("/", passport.authenticate("jwt", { session: false }), update);
 // Delete -> /api/books/:id
-router.delete('/:id', passport.authenticate('jwt', { session: false }), deleteBook);
+router.delete(
+  "/:id",
+  passport.authenticate("jwt", { session: false }),
+  deleteBook
+);
 
 module.exports = router;
